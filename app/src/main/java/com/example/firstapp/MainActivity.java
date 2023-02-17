@@ -1,6 +1,11 @@
 package com.example.firstapp;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
@@ -20,6 +25,7 @@ import com.google.api.services.calendar.CalendarScopes;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.Events;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -45,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private static final List<String> SCOPES =
             Collections.singletonList(CalendarScopes.CALENDAR_READONLY);
-    private static final String CREDENTIALS_FILE_PATH = "./credentials.json";
+    private static final String CREDENTIALS_FILE_PATH = "src/main/res/credentials.json";
     ListView l;
     String[] tutorials
             = { "Algorithms", "Data Structures",
@@ -61,20 +67,33 @@ public class MainActivity extends AppCompatActivity {
      * @return An authorized Credential object.
      * @throws IOException If the credentials.json file cannot be found.
      */
-    private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT)
+    private Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT)
             throws IOException {
         // Load client secrets.
-        InputStream in = MainActivity.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
+        InputStream in = this.getResources().openRawResource(R.raw.credentials);
         if (in == null) {
             throw new FileNotFoundException("Resource not found: " + CREDENTIALS_FILE_PATH);
         }
         GoogleClientSecrets clientSecrets =
                 GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
+        String[] permissionsStorage = {Manifest.permission.WRITE_EXTERNAL_STORAGE};
+        int requestExternalStorage = 1;
+        if (!ActivityCompat.shouldShowRequestPermissionRationale(this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            ActivityCompat.requestPermissions(this, permissionsStorage, requestExternalStorage);
+        }
+
+        File tokenFolder = new File(Environment.getExternalStorageDirectory() +
+                File.separator + TOKENS_DIRECTORY_PATH);
+        if (!tokenFolder.exists()) {
+            tokenFolder.mkdirs();
+        }
+
         // Build flow and trigger user authorization request.
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
+                .setDataStoreFactory(new FileDataStoreFactory(tokenFolder))
                 .setAccessType("offline")
                 .build();
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
